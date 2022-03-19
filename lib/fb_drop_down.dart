@@ -34,8 +34,7 @@ class FBDropDown extends StatefulWidget {
   const FBDropDown({
     Key? key,
     required this.items,
-    // this.controller,
-    // this.onChanged,
+    this.value = '',
     this.onSelected,
     this.leadingIcon,
     this.trailingIcon,
@@ -46,16 +45,6 @@ class FBDropDown extends StatefulWidget {
     this.decoration,
     this.foregroundDecoration,
     this.highlightColor,
-    this.cursorColor,
-    this.cursorHeight,
-    this.cursorRadius,
-    this.cursorWidth = 1.5,
-    this.showCursor,
-    this.keyboardAppearance,
-    this.scrollPadding = const EdgeInsets.all(20.0),
-    this.selectionHeightStyle = ui.BoxHeightStyle.tight,
-    this.selectionWidthStyle = ui.BoxWidthStyle.tight,
-    this.value = '',
   }) : super(key: key);
 
   /// The list of items to display to the user to pick
@@ -118,44 +107,6 @@ class FBDropDown extends StatefulWidget {
   /// If [foregroundDecoration] is provided, this must not be provided.
   final Color? highlightColor;
 
-  /// {@macro flutter.widgets.editableText.cursorWidth}
-  final double cursorWidth;
-
-  /// {@macro flutter.widgets.editableText.cursorHeight}
-  final double? cursorHeight;
-
-  /// {@macro flutter.widgets.editableText.cursorRadius}
-  final Radius? cursorRadius;
-
-  /// The color of the cursor.
-  ///
-  /// The cursor indicates the current location of text insertion point in
-  /// the field.
-  final Color? cursorColor;
-
-  /// {@macro flutter.widgets.editableText.showCursor}
-  final bool? showCursor;
-
-  /// Controls how tall the selection highlight boxes are computed to be.
-  ///
-  /// See [ui.BoxHeightStyle] for details on available styles.
-  final ui.BoxHeightStyle selectionHeightStyle;
-
-  /// Controls how wide the selection highlight boxes are computed to be.
-  ///
-  /// See [ui.BoxWidthStyle] for details on available styles.
-  final ui.BoxWidthStyle selectionWidthStyle;
-
-  /// The appearance of the keyboard.
-  ///
-  /// This setting is only honored on iOS devices.
-  ///
-  /// If unset, defaults to the brightness of [ThemeData.primaryColorBrightness].
-  final Brightness? keyboardAppearance;
-
-  /// {@macro flutter.widgets.editableText.scrollPadding}
-  final EdgeInsets scrollPadding;
-
   @override
   _FBDropDownState createState() => _FBDropDownState();
 
@@ -189,8 +140,6 @@ class _FBDropDownState<T> extends State<FBDropDown> {
   final LayerLink _layerLink = LayerLink();
   final GlobalKey _textBoxKey = GlobalKey();
 
-  // late TextEditingController controller;
-
   final FocusScopeNode overlayNode = FocusScopeNode();
 
   ValueNotifier<String> get selectedItem => _selectedItem;
@@ -199,22 +148,14 @@ class _FBDropDownState<T> extends State<FBDropDown> {
   @override
   void initState() {
     super.initState();
-    // controller = widget.controller ?? TextEditingController();
-    // controller.addListener(() {
-    //   if (!mounted) return;
-    //   if (controller.text.length < 2) setState(() {});
-    // });
     _selectedItem.value = widget.value;
-
     focusNode.addListener(_handleFocusChanged);
   }
 
   @override
   void dispose() {
     focusNode.removeListener(_handleFocusChanged);
-    // if (widget.controller == null) {
-    //   controller.dispose();
-    // }
+
     super.dispose();
   }
 
@@ -299,19 +240,13 @@ class _FBDropDownState<T> extends State<FBDropDown> {
             return TextButton(
               key: _textBoxKey,
               style: ButtonStyle(
-                foregroundColor: null,
+                overlayColor:
+                    MaterialStateProperty.all<Color>(Colors.transparent),
                 alignment: Alignment.centerLeft,
                 minimumSize:
                     MaterialStateProperty.all<Size>(const Size(120, 40)),
-                padding: MaterialStateProperty.resolveWith<EdgeInsetsGeometry>(
-                    (states) {
-                  // if (states.contains(MaterialState.hovered) ||
-                  //     states.contains(MaterialState.pressed)) {
-                  //   return const EdgeInsets.all(9);
-                  // }
-
-                  return const EdgeInsets.all(12);
-                }),
+                padding: MaterialStateProperty.all<EdgeInsetsGeometry>(
+                    const EdgeInsets.symmetric(horizontal: 12)),
                 shape: MaterialStateProperty.all<OutlinedBorder>(
                   const RoundedRectangleBorder(
                     borderRadius: BorderRadius.all(Radius.circular(4.0)),
@@ -319,7 +254,8 @@ class _FBDropDownState<T> extends State<FBDropDown> {
                 ),
                 backgroundColor: MaterialStateProperty.all<Color>(Colors.white),
                 side: MaterialStateProperty.resolveWith<BorderSide>((states) {
-                  if (states.contains(MaterialState.hovered) ||
+                  if (_entry != null ||
+                      states.contains(MaterialState.hovered) ||
                       states.contains(MaterialState.pressed)) {
                     return const BorderSide(
                       color: Color(0xFF198CFE),
@@ -331,35 +267,46 @@ class _FBDropDownState<T> extends State<FBDropDown> {
                     width: 1,
                   );
                 }),
-                textStyle:
-                    MaterialStateProperty.resolveWith<TextStyle>((states) {
-                  if (states.contains(MaterialState.disabled) || item.isEmpty) {
-                    return TextStyle(
-                        color: const Color(0xFF5C6273).withOpacity(0.48),
-                        fontSize: 14);
-                  }
-
-                  return const TextStyle(
-                      color: Color(0xFF1F2126), fontSize: 14);
-                }),
               ),
               focusNode: focusNode,
               onPressed: () {
                 // widget.onChanged?.call('', TextChangedReason.userInput);
-                _showOverlay();
+                if (_entry != null) {
+                  _dismissOverlay();
+                } else {
+                  _showOverlay();
+                }
               },
-              child: item.isEmpty
-                  ? Text(
+              child: Row(
+                children: [
+                  if (item.isEmpty)
+                    Text(
                       '请选择圈子频道',
                       style: TextStyle(
                           color: const Color(0xFF5C6273).withOpacity(0.48),
                           fontSize: 14),
                     )
-                  : Text(
+                  else
+                    Text(
                       item,
                       style: const TextStyle(
                           color: Color(0xFF1F2126), fontSize: 14),
                     ),
+                  const Expanded(child: SizedBox()),
+                  if (_entry != null)
+                    const Icon(
+                      Icons.arrow_drop_up,
+                      color: Color(0xFF1F2126),
+                      size: 20,
+                    )
+                  else
+                    Icon(
+                      Icons.arrow_drop_down,
+                      color: const Color(0xFF5C6273).withOpacity(0.48),
+                      size: 20,
+                    )
+                ],
+              ),
             );
           },
         ),
@@ -397,8 +344,6 @@ class _AutoSuggestBoxOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // final theme = Theme.of(context);
-    // final localizations = FluentLocalizations.of(context);
     return FocusScope(
       node: node,
       child: Container(
